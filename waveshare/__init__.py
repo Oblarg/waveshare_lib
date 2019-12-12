@@ -70,7 +70,8 @@ def start(device):
 
 
 def stop():
-    if ser is not None:
-        ser.write("AT+CGNSTST=0\n")
-    if thread is not None:
-        thread.stop()
+    with lock:
+        if ser is not None:
+            ser.write("AT+CGNSTST=0\n")
+        if thread is not None:
+            thread.stop()
