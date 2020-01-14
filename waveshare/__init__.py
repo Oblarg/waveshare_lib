@@ -1,11 +1,9 @@
 import serial
 import pynmea2
 import threading
-import continuous_threading
 
 ser = None
 lock = threading.Lock()
-
 thread = None
 
 gga = None
@@ -19,9 +17,19 @@ def get_gga():
         return gga
 
 
+def __set_gga(val):
+    global gga
+    gga = val
+
+
 def get_gsa():
     with lock:
         return gsa
+
+
+def __set_gsa(val):
+    global gsa
+    gsa = val
 
 
 def get_gsv():
@@ -29,49 +37,57 @@ def get_gsv():
         return gsv
 
 
+def __set_gsv(val):
+    global gsv
+    gsv = val
+
+
 def get_rmc():
     with lock:
         return rmc
+
+
+def __set_rmc(val):
+    global rmc
+    rmc = val
 
 
 def start(device):
     global ser
     global thread
 
-    global gga
-    global gsa
-    global gsv
-    global rmc
-
     ser = serial.Serial(device, 19200, timeout=1)
-    ser.write("AT+CGNSPWR=1\n")  # turn on the power for GPS
+    ser.write(str.encode("AT+CGNSPWR=1\n"))  # turn on the power for GPS
 
     # TODO: figure out if/why this is needed
-    ser.write("AT+CGNSSEQ=\"RMC\"\n")  # define the last NMEA sentence that parsed
+    ser.write(str.encode("AT+CGNSSEQ=\"RMC\"\n"))  # define the last NMEA sentence that parsed
 
-    ser.write("AT+CGNSTST=1\n")  # start gps streaming to serial
+    ser.write(str.encode("AT+CGNSTST=1\n"))  # start gps streaming to serial
 
     def read_data():
-        line = ser.read_until("\n")
 
-        headers = {
-            "$gngga": gga,
-            "$gngsa": gsa,
-            "$gngsv": gsv,
-            "$gnrmc": rmc,
-        }
+        while True:
+            line = ser.read_until(str.encode("\n")).decode()
 
-        if line[:6] in headers.keys():
-            with lock:
-                headers[line[:6]] = pynmea2.parse(line)
+            headers = {
+                "$GNGGA": __set_gga,
+                "$GPGSA": __set_gsa,
+                "$GPGSV": __set_gsv,
+                "$GNRMC": __set_rmc,
+            }
 
-    thread = continuous_threading.ContinuousThread(target=read_data())
+            if line[:6] in headers.keys():
+                with lock:
+                    headers[line[:6]](pynmea2.parse(line))
+
+    thread = threading.Thread(target=read_data)
+    thread.daemon = True
     thread.start()
 
 
 def stop():
     with lock:
         if ser is not None:
-            ser.write("AT+CGNSTST=0\n")
+            ser.write(str.encode("AT+CGNSTST=0\n"))
         if thread is not None:
             thread.stop()
