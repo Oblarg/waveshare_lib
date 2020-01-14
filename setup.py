@@ -7,7 +7,7 @@ with open(path.join(this_directory, "README.md"), encoding="utf-8") as f:
 
 setup(
     name="waveshare_rpi",
-    version="0.1.0",
+    version="0.1.1",
     author="Eli Barnett",
     author_email="emichaelbarnett@gmail.com",
     description=("A quick-and-dirty library wrapping the native API of the "
